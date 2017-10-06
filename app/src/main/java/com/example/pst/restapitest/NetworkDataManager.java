@@ -8,6 +8,7 @@ import com.example.pst.restapitest.interfaces.PostObservable;
 import com.example.pst.restapitest.interfaces.PostObserver;
 import com.example.pst.restapitest.model.Post;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Observer;
@@ -29,7 +30,7 @@ public class NetworkDataManager implements PostObservable {
     private static final String TAG = NetworkDataManager.class.getSimpleName();
     private Call<List<Post>> callPosts;
     private List<Post> listPosts;
-    private List<PostObserver> postObservers = new ArrayList<>();
+    private List<WeakReference<PostObserver>> postObservers = new ArrayList<>();
 
     private NetworkDataManager() {
         initRetrofit();
@@ -77,7 +78,8 @@ public class NetworkDataManager implements PostObservable {
 
     @Override
     public void addObserver(PostObserver postObserver) {
-        postObservers.add(postObserver);
+        WeakReference<PostObserver> reference = new WeakReference<PostObserver>(postObserver);
+        postObservers.add(reference);
         if (listPosts != null && listPosts.size() > 0) {
             postObserver.onPostsReceived(listPosts);
         }
@@ -85,14 +87,24 @@ public class NetworkDataManager implements PostObservable {
 
     @Override
     public void removeObserver(PostObserver postObserver) {
-        postObservers.remove(postObserver);
-
+        for (WeakReference<PostObserver> reference : postObservers) {
+            PostObserver observer = reference.get();
+            if (observer == null || observer.equals(postObserver)) {
+                postObservers.remove(reference);
+                break;
+            }
+        }
+//yfufkfy
     }
 
     @Override
     public void notifyObservers() {
-        for (PostObserver observer : postObservers) {
-            observer.onPostsReceived(listPosts);
+
+        for (WeakReference<PostObserver> reference : postObservers) {
+            PostObserver postObserver = reference.get();
+            if (postObserver != null) {
+                postObserver.onPostsReceived(listPosts);
+            }
         }
     }
 }
